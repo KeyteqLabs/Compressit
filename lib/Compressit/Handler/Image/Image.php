@@ -18,6 +18,8 @@ use Compressit\Exception\DriverNotFoundException;
  */
 class Image implements HandlerInterface
 {
+    const TMPDIR = '/tmp/compressit/';
+
     /**
      * Path to file
      * @var string
@@ -61,6 +63,9 @@ class Image implements HandlerInterface
         $this->_file = $file;
         $this->_type = $type;
         $this->_driver = $this->_getDriver();
+        if (!is_dir(self::TMPDIR)) {
+            mkdir(self::TMPDIR, 0777);
+        }
     }
 
     /**

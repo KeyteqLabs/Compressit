@@ -8,7 +8,8 @@
 
 namespace Compressit\Handler\Image\Driver;
 
-use Compressit\Handler\Image\Helper as Helper;
+use Compressit\Handler\Image\Image;
+use Compressit\Handler\Image\Helper\ShellCommand;
 
 /**
  * Compress Gif files using gifsicle library
@@ -32,16 +33,16 @@ class Gif implements DriverInterface
     protected $_file;
 
     /**
+     * Path to tmp file
+     * @var string
+     */
+    protected $_tmpFile;
+
+    /**
      * Original file size
      * @var int
      */
     protected $_fileSize;
-
-    /**
-     * Compressed file suffix
-     * @var int
-     */
-    protected $_suffix = "_compressed";
 
     public function __construct($file)
     {
@@ -60,27 +61,30 @@ class Gif implements DriverInterface
     {
         if(ShellCommand::exist('gifsicle'))
         {
-            $pathInfo = pathinfo($this->_file);
-            $compressedFile = implode(DIRECTORY_SEPARATOR, array(
-                    $pathInfo['dirname'],
-                    $pathInfo['filename'],
-                    $this->_suffix,
-                    EXT
-                ));
-            $args = array($this->_file, $compressedFile);
-            ShellCommand::exec('gifsicle -O2 %s -o %s', $args);
+            // create tmp file to work with
+            $this->_tmpFile = Image::TMPDIR.md5(time().microtime()).self::EXT;
+            file_put_contents($this->_tmpFile, file_get_contents($this->_file));
+            // store original file size
+            $this->_fileSize = filesize($this->_tmpFile);
+            $args = array($this->_tmpFile);
+            $compressedFile = ShellCommand::exec('gifsicle -O2 %s -o -', $args);
+            file_put_contents($this->_tmpFile, $compressedFile);
         }
         else
         {
             // Maybe throw an error? But this will make gifsicle library required.
             return false;
         }
-        if(file_exists($compressedFile))
+        if(file_exists($this->_tmpFile))
         {
-            $compressedSize = filesize($compressedFile);
+            clearstatcache();
+            $compressedSize = filesize($this->_tmpFile);
+            // If no compression return false
+            if($this->_fileSize == $compressedSize)
+                return false;
             $savings = round((1 -($compressedSize/$this->_fileSize)) * 100);
             return array(
-                'path' => $compressedFile,
+                'path' => $this->_tmpFile,
                 'mimeType' => 'image/gif',
                 'originalSize' => $this->_fileSize,
                 'compressedSize' => $compressedSize,

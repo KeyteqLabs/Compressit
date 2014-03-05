@@ -8,6 +8,7 @@
 
 namespace Compressit\Handler\Image\Driver;
 
+use Compressit\Handler\Image\Image;
 use Compressit\Handler\Image\Helper\ShellCommand;
 
 /**
@@ -32,6 +33,12 @@ class Png implements DriverInterface
     protected $_file;
 
     /**
+     * Path to tmp file
+     * @var string
+     */
+    protected $_tmpFile;
+
+    /**
      * Original file size
      * @var int
      */
@@ -49,11 +56,6 @@ class Png implements DriverInterface
      */
     protected $_qualityMax = 65;
 
-    /**
-     * Compressed file extension
-     * @var int
-     */
-    protected $_suffix = "_compressed";
 
     public function __construct($file)
     {
@@ -72,20 +74,30 @@ class Png implements DriverInterface
     {
         if(ShellCommand::exist('pngquant'))
         {
-            $args = array($this->_qualityMin, $this->_qualityMax, $this->_suffix.EXT, $this->_file);
-            ShellCommand::exec('pngquant --quality=%d-%d --ext=%s %s', $args);
+            // create tmp file to work with
+            $this->_tmpFile = Image::TMPDIR.md5(time().microtime()).self::EXT;
+            file_put_contents($this->_tmpFile, file_get_contents($this->_file));
+            // store original file size
+            $this->_fileSize = filesize($this->_tmpFile);
+            $args = array($this->_qualityMin, $this->_qualityMax, $this->_tmpFile);
+            $compressedFile = ShellCommand::exec('pngquant --quality=%d-%d - < %s', $args);
+            file_put_contents($this->_tmpFile, $compressedFile);
         }
         else
         {
             // Maybe throw an error? But this will make pngquant and libpng libraries required.
             return false;
         }
-        if(file_exists($compressedFile = $this->_file.$this->_suffix.EXT))
+        if(file_exists($this->_tmpFile))
         {
-            $compressedSize = filesize($compressedFile);
+            clearstatcache();
+            $compressedSize = filesize($this->_tmpFile);
+            // If no compression return false
+            if($this->_fileSize == $compressedSize)
+                return false;
             $savings = round((1 -($compressedSize/$this->_fileSize)) * 100);
             return array(
-                'path' => $compressedFile,
+                'path' => $this->_tmpFile,
                 'mimeType' => 'image/png',
                 'originalSize' => $this->_fileSize,
                 'compressedSize' => $compressedSize,

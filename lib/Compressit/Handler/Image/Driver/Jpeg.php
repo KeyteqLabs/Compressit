@@ -8,7 +8,8 @@
 
 namespace Compressit\Handler\Image\Driver;
 
-use Compressit\Handler\Image\Helper as Helper;
+use Compressit\Handler\Image\Image;
+use Compressit\Handler\Image\Helper\ShellCommand;
 
 /**
  * Compress Gif files using jpegoptim library
@@ -21,10 +22,22 @@ class Jpeg implements DriverInterface
 {
 
     /**
-     * Path to file
+     * File extension
+     * @var string
+     */
+    const EXT = '.jpg';
+
+    /**
+     * Path to original file
      * @var string
      */
     protected $_file;
+
+    /**
+     * Path to tmp file
+     * @var string
+     */
+    protected $_tmpFile;
 
     /**
      * Original file size
@@ -36,18 +49,11 @@ class Jpeg implements DriverInterface
      * Image quality. Use loseless compression if $_quality = 0
      * @var int
      */
-    protected $_quality = 90;
-
-    /**
-     * Compressed file extension
-     * @var int
-     */
-    protected $_tmpDir = "jpegoptim";
+    protected $_quality = 60;
 
     public function __construct($file)
     {
         $this->_file = $file;
-        $this->_fileSize = filesize($file);
     }
 
     /**
@@ -55,32 +61,36 @@ class Jpeg implements DriverInterface
      * @return array
      * @see https://github.com/tjko/jpegoptim
      *
+     * @uses Compressit\Handler\Image::TMPDIR
      * @uses Compressit\Handler\Image\Helper\ShellCommand
      */
     public function compress()
     {
         if(ShellCommand::exist('jpegoptim'))
         {
-            $args = array($this->_file, $this->_tmpDir, $this->_quality);
-            ShellCommand::exec('jpegoptim %s -d %s -m %d --strip-all -o', $args);
+            // create tmp file to work with
+            $this->_tmpFile = Image::TMPDIR.md5(time().microtime()).self::EXT;
+            file_put_contents($this->_tmpFile, file_get_contents($this->_file));
+            // store original file size
+            $this->_fileSize = filesize($this->_tmpFile);
+            $args = array($this->_tmpFile, $this->_quality);
+            ShellCommand::exec('jpegoptim %s -m%d --strip-all', $args);
         }
         else
         {
             // Maybe throw an error? But this will make jpegoptim library required.
             return false;
         }
-        $pathInfo = pathinfo($this->_file);
-        $compressedFile = implode(DIRECTORY_SEPARATOR, array(
-                $pathInfo['dirname'],
-                $this->_tmpDir,
-                $pathInfo['basename']
-            ));
-        if(file_exists($compressedFile))
+        if(file_exists($this->_tmpFile))
         {
-            $compressedSize = filesize($compressedFile);
+            clearstatcache();
+            $compressedSize = filesize($this->_tmpFile);
+            // If no compression return false
+            if($this->_fileSize == $compressedSize)
+                return false;
             $savings = round((1 -($compressedSize/$this->_fileSize)) * 100);
             return array(
-                'path' => $compressedFile,
+                'path' => $this->_tmpFile,
                 'mimeType' => 'image/jpeg',
                 'originalSize' => $this->_fileSize,
                 'compressedSize' => $compressedSize,
@@ -119,6 +129,14 @@ class Jpeg implements DriverInterface
     public function getFileSize()
     {
         return $this->_fileSize;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTmpFile()
+    {
+        return $this->_tmpFile;
     }
 
 
