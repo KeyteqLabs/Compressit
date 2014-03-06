@@ -93,7 +93,7 @@ class Png implements DriverInterface
             clearstatcache();
             $compressedSize = filesize($this->_tmpFile);
             // If no compression return false
-            if($this->_fileSize == $compressedSize)
+            if( ! $this->_fileSize or $this->_fileSize == $compressedSize)
                 return false;
             $savings = round((1 -($compressedSize/$this->_fileSize)) * 100);
             return array(
