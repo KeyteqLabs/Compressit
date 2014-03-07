@@ -1,0 +1,19 @@
+{
+    "name": "compressit",
+    "description": "File compression mechanism",
+    "keywords": [
+        "file compression"
+    ],
+    "homepage": "https://github.com/barat/Compressit",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Bartosz Telesinski",
+            "email": "b.telesinski@gmail.com",
+            "homepage": "https://github.com/barat/"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.2"
+    }
+}
