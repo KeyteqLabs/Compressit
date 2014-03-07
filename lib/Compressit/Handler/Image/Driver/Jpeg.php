@@ -49,7 +49,7 @@ class Jpeg implements DriverInterface
      * Image quality. Use loseless compression if $_quality = 0
      * @var int
      */
-    protected $_quality = 90;
+    protected $_quality = 80;
 
     public function __construct($file)
     {
