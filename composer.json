@@ -1,5 +1,5 @@
 {
-    "name": "compressit",
+    "name": "espeo/compressit",
     "description": "File compression mechanism",
     "keywords": [
         "file compression"
